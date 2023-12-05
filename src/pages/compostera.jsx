@@ -21,6 +21,7 @@ import ReactApexChart from 'react-apexcharts';
 
 function formatearFechaEnEspanol(fecha) {
   const fechaObjeto = new Date(fecha);
+  fechaObjeto.setHours(fechaObjeto.getHours() - 4);
   const opciones = {
     year: 'numeric',
     month: 'long',
@@ -51,7 +52,28 @@ export default function Compostera() {
     getDatosRecolectados(id);
     getCompostador(id);
     getDatosRecolectadosFull(id);
+    const channel = supabase
+      .channel("datos_recolectados")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+        },
+        (payload) => {console.log(payload)
+          getDatosRecolectados(id);
+          getCompostador(id);
+          getDatosRecolectadosFull(id);
+      }
+      )
+      .subscribe();
+
+    return () => channel.unsubscribe(); 
   }, [id]);
+
+  // useEffect(() => {
+   
+  // }, [id]);
 
   async function getDatosRecolectados(ide) {
     const { data } = await supabase
@@ -69,7 +91,7 @@ export default function Compostera() {
     setCompostador(data);
   }
 //   console.log(ultimosDatos);
-//   console.log(compostador);
+  console.log(compostador);
 
   const fechaYHora = formatearFechaEnEspanol(ultimosDatos.fecha);
 //   console.log(fechaYHora);
@@ -78,7 +100,8 @@ export default function Compostera() {
   async function getDatosRecolectadosFull(ide) {
     const { data } = await supabase.from('datos_recolectados')
       .select()
-      .eq('idcomp', ide);
+      .eq('idcomp', ide).order("fecha", { ascending: false }) // Ordena por fecha en orden descendente
+      .limit(100); ;
   
     const fechas = data.map(dato => dato.fecha);
     const temperaturas = data.map(dato => dato.temperatura);
@@ -87,7 +110,7 @@ export default function Compostera() {
     setDatosRecolectadosFull({ fechas, temperaturas, humedades });
   }
   
-  // console.log(datosRecolectados.fechas);
+   console.log(datosRecolectados.fechas);
   // console.log(datosRecolectados.temperaturas);
 
   const series = [
@@ -183,7 +206,9 @@ export default function Compostera() {
               <Button size="small">Learn More</Button>
             </CardActions> */}
           </Card>
-        </Box>
+        </Box> <Typography sx={{ fontSize: 34 }} color="text.secondary" gutterBottom>
+                Ultimo Dato{}
+              </Typography>
         <Grid container spacing={3}>
           <Grid key={1000} xs={12} sm={6} md={3}>
             <Card>
@@ -232,6 +257,7 @@ export default function Compostera() {
                   align="center"
                 >
                   {fechaYHora}
+                  {console.log(fechaYHora)}
                 </Typography>
               </CardContent>
             </Card>
@@ -239,7 +265,7 @@ export default function Compostera() {
           <Grid key={4000} xs={12} sm={12} md={12}>
             <Card>   <CardContent>
               <Typography sx={{ fontSize: 34 }} color="text.secondary" gutterBottom>
-                Datos de hoy{}
+                Ultimos 100 datos{}
               </Typography>
 
               <ReactApexChart series={series} options={options} type="area" height={500} />
